@@ -1,0 +1,244 @@
+#!/bin/bash
+#Mikołaj Nawojowski grupa 2
+
+filename=`date +%b-%d-%y`.ods
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" 
+dActive=False
+
+function checkIfHelp()
+{
+	pathToHelp="$DIR/help.txt"
+	for option in $@; do
+		if [[ $option = "-h" ]] || [[ $option = "--help" ]]; then
+			while IFS='' read -r line || [[ -n "$line" ]]; do
+				echo $line
+			done < $pathToHelp
+			exit
+		fi
+	done
+}
+
+function checkIfDest()
+{
+	for option in $(seq 1 $#); do
+		if [[ ${!option} = "-d" ]]; then
+			num=$((option+1));
+			DEST=${!num};
+			dActive=True
+			shift $num
+		fi
+	done
+	arguments=$@;
+	paths=$@;
+}
+
+function checkDestPath()
+{
+	if [ $1 = "." ]; then
+		current="$(pwd )"
+		DEST="$current";
+	elif [ $1 = ".." ]; then
+		oneDot="$(pwd )"
+		current="$(dirname "$oneDot")"
+		DEST="$current";
+	elif [ ${1:0:2} = ".." ]; then
+		a=$(cd $(dirname ${PWD}) && pwd);
+		b=${1#*.};
+		b=${b#*.};
+		DEST="$a$b";
+	elif [ ${1:0:1} = "." ]; then
+		a=$(cd ${PWD} && pwd);
+		b=${1#*.};
+		DEST="$a$b"
+	else
+		DEST=$1;
+	fi
+	
+	if [[ ! -d $DEST ]]; then
+		mkdir -p $DEST;
+		if [[ ! -d $DEST ]]; then
+			echo "nie udalo sie stworzyc pliku";
+			exit;
+		fi
+	fi
+	DEST=$(cd ${DEST} && pwd);
+}
+
+function checkIfDot()
+{
+	paths=();
+	temporary="";
+	i=0;
+	for argument in $arguments; do
+		i=$((i+1));
+		if [ $argument = "." ]; then
+			if [[ "$i" == "$#" ]]; then
+				set -- "${@:1:$i-1}";
+			elif [[ "$i" == "1" ]]; then
+				set -- "${@:2:$#}";
+			else
+				set -- "${@:1:$i-1}" "${@:$i+1:$#}";
+			fi
+			current="$(pwd )"
+		elif [ $argument = ".." ]; then
+			if [[ "$i" == "$#" ]]; then
+				set -- "${@:1:$i-1}";
+			elif [[ "$i" == "1" ]]; then
+				set -- "${@:2:$#}";
+			else
+				set -- "${@:1:$i-1}" "${@:$i+1:$#}";
+			fi
+			oneDot="$(pwd )"
+			current="$(dirname "$oneDot")"
+
+		elif [ ${argument:0:2} = ".." ]; then
+			a=$(cd $(dirname ${PWD}) && pwd);
+			b=${argument#*.};
+			b=${b#*.};
+			current="$a$b";
+		elif [ ${argument:0:1} = "." ]; then
+			a=$(cd ${PWD} && pwd);
+			b=${argument#*.};
+			current="$a$b"
+		else
+			current=$argument;
+		fi
+
+		h=$((${#current}-1));
+		g="${current:$h:1}";
+		b=1;
+		if [ $g = "/" ]; then
+			while [ $g = "/" ]; do
+				h=$((h-1));
+				b=$((b+1));
+				g="${current:$h:1}";
+			done
+			current="${current:0:-$b+1}";
+		fi
+		temporary="$temporary $current";
+	done
+	paths+=($arguments);
+	arguments=$temporary;
+}
+
+function createRegister()
+{
+	if [ -e "$DEST/$filename" ]; then
+		:
+	else
+		createFile
+	fi
+}
+
+function createFile()
+{
+	touch "$DEST/$filename";
+	echo "Nazwa pliku/katalogu ; Data utworzenia ; Godzina utworzenia ; Rozmiar (w bajtach)" > "$DEST/$filename"
+}
+
+function IfExists()
+{
+	if [[ $1 == *"/"* ]]; then
+		argument="/$1"
+	else
+		argument=$(find $DIR -maxdepth 1 -name "$1")
+	fi
+	if [ ! -d "$argument" ] && [ ! -f "$argument" ]; then
+		return 1
+	else
+		return 0
+	fi
+}
+
+function getFileSize()
+{
+	if [[ $1 == *"/"* ]]; then
+		echo $(stat -c%s "/$1")	
+	else
+		echo $(stat -c%s "$DIR/$1")	
+	fi
+}
+
+function createBackup()
+{  
+	SRCDIR=$3;
+	if [[ $1 == *"/"* ]]; then
+		FILENAME=$2-${1##*/}-backup.tar.gz
+	else
+		FILENAME=$2-$1-backup.tar.gz	
+	fi
+	if [[ $3 == "./"* ]]; then
+		SRCDIR=${3#*./};
+	fi
+	tar -cpzf $DEST/$FILENAME "$SRCDIR";
+}
+
+function updateRegister()
+{
+	if [[ $1 == *"/"* ]]; then
+		file=${1##*/}
+	else
+		file=$1
+	fi
+	fileFound=false
+	pathToFile="$DEST/$filename"
+	#echo $pathToFile;
+	while IFS='' read -r line || [[ -n "$line" ]]; do
+		a=( $line )
+		if [[ "${a[0]}" == "$file" ]]; then
+			fileFound=true
+		fi
+		if [[ "$fileFound" = true ]]; then	
+			oldLine="$file ; ${a[2]} ; ${a[4]} ; ${a[6]}"
+			newLine="$file ; $2 ; `date +%T` ; $3"
+			sed -i s/"$oldLine"/"$newLine"/g $pathToFile
+			break
+		fi
+	done < $pathToFile
+	if [[ "$fileFound" = false ]]; then
+		printNew $file $2 $3
+	fi
+}
+
+function printNew()
+{
+	echo $1 ";" $2 ";" `date +%T` ";" $3>> "$DEST/$filename"
+}
+
+function convertFileToSheet()
+{
+	sed s/_/\./g < `date +%b-%d-%y`.txt | awk -F. '{ print $1","$2","$3","$4}' > $filename
+}
+
+
+
+#main
+checkIfHelp $@
+checkIfDest $@
+checkDestPath $DEST
+checkIfDot $arguments
+if  [[ $dActive == "True" ]]; then
+	if IfExists $DEST; then
+		:
+	else
+		echo "Zle wywolanie opcji -d";
+		exit;
+	fi
+else
+	DEST=$DIR
+fi
+	
+createRegister
+e=0;
+for file in $arguments; do
+	if IfExists $file; then
+		TIME=`date +%b-%d-%y` 
+		FILESIZE=$(getFileSize $file)
+		createBackup $file $TIME ${paths[$e]}
+		updateRegister $file $TIME $FILESIZE
+	else 
+		echo "Nie znaleziono pliku ani folderu o następującej nazwie: $file"
+	fi
+	e=$((e+1));
+done
+

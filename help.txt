@@ -1,0 +1,16 @@
+Program tworzy kopie zapasowe plikow lub folderow, ktore zostaly podane jako argumenty:
+			Backup g 
+,gdzie g to nazwa pliku, folderu, kilku plikow, folderow oddzielonych od siebie spacjami lub sciezka do pliku, folderu. Jesli zostanie podana tylko nazwa pliku, program szuka go w kartotece, w ktorej znajduje sie skrypt "Backup".
+Kopie zostana spakowana do pliku tar.gz.
+
+Po stworzeniu kopii zapasowych program tworzy rejestr plikow, ktorych kopie zrobil (w formacie ods). W rejestrze znajduja sie: nazwa pliku, data i godzina wykonania kopii zapasowej i jej rozmiar. Mozliwe jest stworzenie jednego pliku rejestru na dany dzien.
+Jesli nie zostala uzyta opcja "-d" rejestr i kopie zapasowe plikow umieszczone sa w kartotece, w ktorej znajduje sie skrypt "Backup". W innym wypadku beda stworzone w miejscu, ktore zostalo podane przy opcji "-d". Jesli podany w opcji "-d" folder nie istnieje, zostanie on stworzony w podanym miejscu.
+
+Mozliwe jest stworzenie tylko jednej kopii zapasowej pliku lub folderu na dany dzien. Starsze kopie beda zastepowane przez nowsze. W takim wypadku rejestr takze zostanie zaaktualizowany (wpis o starszej kopii zapasowej zostanie zastapiony przez wpis o nowszej).
+Program mozna wywolac z opcjami:
+-h, --help -nastapi wywolanie pliku pomocy.
+-d -stworzenie kopii i rejestru nastapi w miejscu podanym jako argument wywolania opcji. Konieczne jest podanie pelnej sciezki.
+
+Przyklad:
+Backup -d /home/user/Pulpit /home/user/dir1 /home/user/dir2 file1
+
